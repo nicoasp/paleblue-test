@@ -173,7 +173,7 @@ function fadeOut() {
   return new Cesium.CallbackProperty((time, result) => {
     const now = performance.now();
     const t = now - start;
-    const alpha = 1.0 - t / 4000;
+    let alpha = 1.0 - t / 4000;
     if (alpha < 0) alpha = 0;
     return new Cesium.Color(1.0, 1.0, 1.0, alpha);
   }, false);
