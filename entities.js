@@ -28,43 +28,28 @@ const viewer = new Cesium.Viewer('cesiumContainer', {
   creditContainer: "credits"
 });
 
-
-// ellipse entity property
-const blueDot = {
-  semiMinorAxis: 50000.0,
-  semiMajorAxis: 50000.0,
-  material: Cesium.Color.DEEPSKYBLUE.withAlpha(0.9)
-}
-
-const yellowDot = {
-  semiMinorAxis: 50000.0,
-  semiMajorAxis: 50000.0,
-  material: Cesium.Color.YELLOW.withAlpha(0.9)
-}
+// limit max zoom
+viewer.scene.screenSpaceCameraController.maximumZoomDistance = 25000000;
 
 // locations
 const newYork = Cesium.Cartesian3.fromDegrees(-74.059, 40.7128);
 const peoria = Cesium.Cartesian3.fromDegrees(-89.5890, 40.6936);
 const basel = Cesium.Cartesian3.fromDegrees(7.5886, 47.5596);
 
-// entities
-const home = viewer.entities.add({
+// create dots
+const dots = viewer.scene.primitives.add(new Cesium.PointPrimitiveCollection());
+const jerry = dots.add({
   position: newYork,
-  name: 'home',
-  ellipse: blueDot
-});
-
-const mark = viewer.entities.add({
-  position: peoria,
-  name: 'mark',
-  ellipse: yellowDot
-});
-
-const nicolas = viewer.entities.add({
-  position: basel,
-  name: 'nicolas',
-  ellipse: yellowDot
+  color: Cesium.Color.DEEPSKYBLUE
 })
+const mark = dots.add({
+  position: peoria,
+  color: Cesium.Color.GOLD
+});
+const nicolas = dots.add({
+  position: basel,
+  color: Cesium.Color.GOLD
+});
 
 // center camera on a specific point - provide lat/long/height
 viewer.camera.setView({
@@ -86,11 +71,23 @@ function Slerp(start, end, t, result) {
   Cesium.Cartesian3.multiplyByScalar(end, Math.sin(t*theta), result2);
   Cesium.Cartesian3.add(result1, result2, result3);
   Cesium.Cartesian3.divideByScalar(result3, Math.sin(theta), result);
-
   return result;
 }
 
-function drawLine(startEntity, endEntity, duration) {
+function drawLine(startDot, endDot, duration) {
+  const startEntity = viewer.entities.add({
+    position: startDot.position,
+    point: {
+      color: startDot.color
+    }
+  });
+  const endEntity = viewer.entities.add({
+    position: endDot.position,
+    point: {
+      color: endDot.color
+    }
+  });
+
   const startTime = performance.now();
   return new Cesium.CallbackProperty((time, result) => {
     if (!Cesium.defined(result)) {
@@ -110,23 +107,62 @@ function drawLine(startEntity, endEntity, duration) {
   }, false);
 }
 
-// calculating distance between two entities
-const distanceToNico = Cesium.Cartesian3.distance(nicolas.position.getValue(), home.position.getValue());
-const distanceToMark = Cesium.Cartesian3.distance(mark.position.getValue(), home.position.getValue());
-console.log(distanceToNico);
-console.log(distanceToMark);
+// calculating distance between two dots
+const distanceToNico = Cesium.Cartesian3.distance(nicolas.position, jerry.position);
+const distanceToMark = Cesium.Cartesian3.distance(mark.position, jerry.position);
 
+// render polylines - distance / velocity is render time for the line animation
 const velocity = 1000;
 
-// distance / velocity is render time for the line animation
 viewer.entities.add({
   polyline: {
-    positions: drawLine(nicolas, home, distanceToNico / velocity)
+    positions: drawLine(nicolas, jerry, distanceToNico / velocity),
+    material: Cesium.Color.SALMON
   }
 });
 
 viewer.entities.add({
   polyline: {
-    positions: drawLine(mark, home, distanceToMark / velocity)
+    positions: drawLine(mark, jerry, distanceToMark / velocity),
+    material: Cesium.Color.SALMON
   }
-})
+});
+
+// const circle = viewer.entities.add({
+//   position: newYork,
+//   name: 'circle',
+//   ellipse: {
+//     semiMinorAxis: 50000.0,
+//     semiMajorAxis: 50000.0,
+//     fill: false,
+//     outline: true,
+//     outlineColor: Cesium.Color.YELLOW,
+//     outlineWidth: 1.0
+//   }
+// });
+
+// event listener triggered on camera stop
+const cameraStopEvent = viewer.camera.moveEnd;
+cameraStopEvent.addEventListener(getMapCenter);
+
+
+// function makeDot() {
+//   const location = getMapCenter();
+//   if (location == null) return;
+//   viewer.entities.add({
+//     position: location,
+//     ellipse: yellowDot
+//   });
+// }
+
+// calculate location at the center of the camera
+function getMapCenter() {
+  const windowPosition = new Cesium.Cartesian2(viewer.container.clientWidth / 2, viewer.container.clientHeight / 2);
+  const pickRay = viewer.scene.camera.getPickRay(windowPosition);
+  const result = {};
+  const pickPosition = viewer.scene.globe.pick(pickRay, viewer.scene, result);
+  if (pickPosition == undefined) {
+    return null;
+  }
+  return result;
+}
