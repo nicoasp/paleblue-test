@@ -32,14 +32,14 @@ const viewer = new Cesium.Viewer('cesiumContainer', {
 viewer.scene.screenSpaceCameraController.maximumZoomDistance = 25000000;
 
 // locations
-const newYork = Cesium.Cartesian3.fromDegrees(-74.059, 40.7128);
+const bedford = Cesium.Cartesian3.fromDegrees(-71.2760, 42.4906);
 const peoria = Cesium.Cartesian3.fromDegrees(-89.5890, 40.6936);
 const basel = Cesium.Cartesian3.fromDegrees(7.5886, 47.5596);
 
 // create dots
 const dots = viewer.scene.primitives.add(new Cesium.PointPrimitiveCollection());
 const jerry = dots.add({
-  position: newYork,
+  position: bedford,
   color: Cesium.Color.DEEPSKYBLUE
 })
 const mark = dots.add({
@@ -112,7 +112,7 @@ const distanceToNico = Cesium.Cartesian3.distance(nicolas.position, jerry.positi
 const distanceToMark = Cesium.Cartesian3.distance(mark.position, jerry.position);
 
 // render polylines - distance / velocity is render time for the line animation
-const velocity = 1000;
+const velocity = 500;
 
 viewer.entities.add({
   polyline: {
@@ -128,32 +128,9 @@ viewer.entities.add({
   }
 });
 
-// const circle = viewer.entities.add({
-//   position: newYork,
-//   name: 'circle',
-//   ellipse: {
-//     semiMinorAxis: 50000.0,
-//     semiMajorAxis: 50000.0,
-//     fill: false,
-//     outline: true,
-//     outlineColor: Cesium.Color.YELLOW,
-//     outlineWidth: 1.0
-//   }
-// });
-
 // event listener triggered on camera stop
 const cameraStopEvent = viewer.camera.moveEnd;
 cameraStopEvent.addEventListener(getMapCenter);
-
-
-// function makeDot() {
-//   const location = getMapCenter();
-//   if (location == null) return;
-//   viewer.entities.add({
-//     position: location,
-//     ellipse: yellowDot
-//   });
-// }
 
 // calculate location at the center of the camera
 function getMapCenter() {
@@ -166,3 +143,42 @@ function getMapCenter() {
   }
   return result;
 }
+
+// animate expanding circle
+const circle = viewer.entities.add({
+  position: peoria,
+  billboard: {
+    image: './circle.svg',
+    width: 20,
+    height: 20,
+    scale: expand(),
+    color: fadeOut()
+  }
+});
+
+function expand() {
+  const start = performance.now();
+  return new Cesium.CallbackProperty((time, result) => {
+    if (!Cesium.defined(result)) {
+      result = 1.0;
+    }
+    const now = performance.now();
+    const t = now - start;
+    return result + t / 1000;
+  }, false);
+}
+
+function fadeOut() {
+  const start = performance.now();
+  return new Cesium.CallbackProperty((time, result) => {
+    const now = performance.now();
+    const t = now - start;
+    const alpha = 1.0 - t / 4000;
+    if (alpha < 0) alpha = 0;
+    return new Cesium.Color(1.0, 1.0, 1.0, alpha);
+  }, false);
+}
+
+setTimeout(() => {
+  viewer.entities.remove(circle);
+}, 4000);
